@@ -8,7 +8,7 @@ use JSON::XS;
 use FindBin qw/$Bin/;
 use Data::Dumper;
 
-my $access_token = '2.00WsUooC2Qf7MD1e8da3b1d2tRA3UB';
+my $access_token = '2.00zzzzzzzz'; # FIX
 mkdir("$Bin/data") unless -d "$Bin/data";
 
 open(my $fh, '<', "$Bin/symbols.txt");
