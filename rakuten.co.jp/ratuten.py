@@ -24,6 +24,23 @@ def main():
 	if not os.path.exists(Bin + '/phtml'):
 		os.mkdir(Bin + '/phtml')
 
+	DEBUG_BARCODE = False
+
+	re_ingredients = [
+		re.compile('原材料</b>\s*<br/>\s*(.*?)\s*<br/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+		re.compile('原材料：\s*(.*?)\s*<br/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+		re.compile('原材料】<br/>\s*(.*?)\s*<br/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+		re.compile('原材料名】<br/>\s*(.*?)\s*</p>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+		re.compile('原材料名】<br/>\s*(.*?)\s*<br/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+		re.compile('原材料</b>\s*<br/>\s*<br/>\s*<br/>\s*(.*?)<br/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+		re.compile('原材料</\w{2,3}>\s*<div[^\>]*>\s*(.*?)</div>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+		re.compile('原材料\s*<br/>\s*(<table.*?</table>)'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+		re.compile('原材料に含まれるアレルギー物質：?\s*(.*?)\s*</p>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+		re.compile('原材料に含まれるアレルギー物質：?\s*</div><div[^\>]*>(.*?)\s*</div>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+		re.compile('原材料名</td>\s*<td[^\>]*>\s*(.*?)\s*<hr/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+		re.compile('原材料</b><br/><br/><br/>\s*(<table.*?</table>)'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+	]
+
 	txtfile = sys.argv[1]
 	fh = open(txtfile, 'r')
 	while True:
@@ -31,7 +48,7 @@ def main():
 		if not barcode: break
 		barcode = barcode.strip()
 		if barcode == 'Barcode': continue
-		# if barcode != '4902705115729': continue
+		if DEBUG_BARCODE and barcode != DEBUG_BARCODE: continue
 
 		print "\n\n"
 
@@ -47,6 +64,7 @@ def main():
 			print '## MISSING results for ' + barcode
 			continue
 
+		to_fix = 0
 		name, ingredients, image, matched_url = '', '', '', ''
 		for in_url in rsrSResultPhoto:
 			if in_url == 'http://item.rakuten.co.jp/book/12600866/': continue
@@ -55,6 +73,7 @@ def main():
 
 			name, ingredients, image, matched_url = '', '', '', in_url
 			c = get_url(in_url)
+			c.replace("<tr></font></td>", "</font></td>")
 
 			soup = BeautifulSoup(c)
 			trs = soup.find_all('tr')
@@ -71,23 +90,40 @@ def main():
 
 				if tds[0] == '商品名'.decode('utf8'):
 					name = tds[1]
-				elif '原材料'.decode('utf8') in tds[0] or ('成分'.decode('utf8') in tds[0] and '栄養成分'.decode('utf8') not in tds[0]):
+				elif tds[0].endswith('原材料'.decode('utf8')) and len(tds) <= 2:
+					if len(tds) > 1:
+						ingredients = tds[1]
+					else:
+						ingredients = trs.pop(0).get_text().strip()
+				elif (
+						len(tds[0]) < 50 and ('原材料'.decode('utf8') in tds[0] or ('成分'.decode('utf8') in tds[0] and '栄養成分'.decode('utf8') not in tds[0]))
+					) or (
+						tds[0].endswith('原材料'.decode('utf8'))
+					):
 					if not ingredients:
 						if len(tds) > 1:
 							ingredients = tds[1]
 						else:
 							ingredients = trs.pop(0).get_text().strip()
-					if 'item.rakuten.co.jp' in ingredients:
-						ingredients = ''
+				# remove BAD for next choice
+				if 'item.rakuten.co.jp' in ingredients or 'iframe' in ingredients or len(ingredients) > 1000:
+					ingredients = ''
 
 			cc = soup.decode_contents()
-			m = re.search( re.compile('原材料</b><br/>(.*?)<br/>'.decode('utf8'), re.I), cc)
-			if not m: m = re.search( re.compile('原材料】<br/>\s*(.*?)<br/>'.decode('utf8'), re.I), cc)
-			if not m: m = re.search( re.compile('<p>【原材料名】<br/>(.*?)</p>'.decode('utf8'), re.I), cc)
-			if m:
-				tmptext = m.group(1).strip()
-				soup2 = BeautifulSoup(tmptext)
-				ingredients = soup2.get_text().strip()
+			for re_i in re_ingredients:
+				m = re.search(re_i, cc)
+				if m:
+					tmptext = m.group(1).strip()
+					soup2 = BeautifulSoup(tmptext)
+					ingredients = soup2.get_text().strip()
+					break
+
+			if '原材料'.decode('utf8') in cc and not ingredients:
+				if DEBUG_BARCODE: print cc
+				print "FIXME for " + in_url
+				to_fix = 1
+
+			if DEBUG_BARCODE: print ingredients
 
 			if not len(name):
 				name = soup.find('span', attrs={'class': 'content_title'})
@@ -109,6 +145,8 @@ def main():
 			sys.exit(1)
 		if not ingredients:
 			print 'no ingredients'
+			if to_fix:
+				print "REAL FIXME: " + barcode
 			continue ## FIXME
 			sys.exit(1)
 
