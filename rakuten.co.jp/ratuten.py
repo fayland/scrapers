@@ -68,7 +68,7 @@ def main():
 		to_fix = 0
 		name, ingredients, image, matched_url = '', '', '', ''
 		for in_url in rsrSResultPhoto:
-			if in_url == 'http://item.rakuten.co.jp/book/12600866/': continue
+			if 'http://item.rakuten.co.jp/book/' in in_url: continue
 			if 'rakuten.co.jp/doremi/' in in_url: continue # skip BAD
 			if 'rakuten.co.jp/at-life/' in in_url: continue
 
@@ -90,7 +90,7 @@ def main():
 				if not len(tds): continue
 
 				if tds[0] == '商品名'.decode('utf8'):
-					name = tds[1]
+					if len(tds) > 1: name = tds[1]
 				elif tds[0].endswith('原材料'.decode('utf8')) and len(tds) <= 2:
 					if len(tds) > 1:
 						ingredients = tds[1]
@@ -133,7 +133,13 @@ def main():
 					name = re.sub('【\d+】'.decode('utf8'), '', name)
 
 			image = soup.find('a', attrs={'class': re.compile('ImageMain')})
-			if image and 'href' in image.attrs: image = image['href']
+			if image and 'href' in image.attrs:
+				image = image['href']
+			elif image:
+				image = image.find('img')
+				if image:
+					image = image['src']
+					image = re.sub('\?.+$', '', image)
 
 			if name and ingredients: break
 
@@ -151,7 +157,8 @@ def main():
 			continue ## FIXME
 			sys.exit(1)
 
-		get_url(image, Bin + "/uploads/" + barcode + ".jpg");
+		if 'ImageMain1' not in image:
+			get_url(image, Bin + "/uploads/" + barcode + ".jpg");
 
 		ingredients = ingredients.encode('utf8')
 		ingredients = re.sub('\s+', ' ', ingredients).strip()
