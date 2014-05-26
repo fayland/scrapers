@@ -74,6 +74,7 @@ def main():
 
 			name, ingredients, image, matched_url = '', '', '', in_url
 			c = get_url(in_url)
+			if not c: continue # skip
 			c.replace("<tr></font></td>", "</font></td>")
 
 			soup = BeautifulSoup(c)
@@ -157,8 +158,7 @@ def main():
 			continue ## FIXME
 			sys.exit(1)
 
-		if 'ImageMain1' not in image:
-			get_url(image, Bin + "/uploads/" + barcode + ".jpg");
+		get_url(image, Bin + "/uploads/" + barcode + ".jpg");
 
 		ingredients = ingredients.encode('utf8')
 		ingredients = re.sub('\s+', ' ', ingredients).strip()
@@ -195,7 +195,7 @@ def get_url(url, image_file=None):
 		if not res or res.status_code > 200:
 			tried_times = tried_times + 1
 			if tried_times > 5:
-				sys.exit(1)
+				return # just skip it
 			continue
 
 		fh = open(fn, 'w')
