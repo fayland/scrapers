@@ -44,6 +44,7 @@ def main():
 
 	txtfile = sys.argv[1]
 	fh = open(txtfile, 'r')
+	wfh = open('missing_barcodes.txt', 'w')
 	while True:
 		barcode = fh.readline()
 		if not barcode: break
@@ -63,6 +64,7 @@ def main():
 
 		if not rsrSResultPhoto:
 			print '## MISSING results for ' + barcode
+			wfh.write(barcode + "\n")
 			continue
 
 		to_fix = 0
@@ -146,6 +148,7 @@ def main():
 
 		if not image:
 			print 'no image'
+			wfh.write(barcode + "\n")
 			continue # FIXME
 			sys.exit(1)
 		if not name:
@@ -155,6 +158,7 @@ def main():
 			print 'no ingredients'
 			if to_fix:
 				print "REAL FIXME: " + barcode
+			wfh.write(barcode + "\n")
 			continue ## FIXME
 			sys.exit(1)
 
@@ -167,6 +171,7 @@ def main():
 		csvwriter.writerow([barcode, ingredients, name, "uploads/" + barcode + ".jpg", matched_url])
 
 	fh.close()
+	wfh.close()
 
 def get_url(url, image_file=None):
 	fn = image_file
