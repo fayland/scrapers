@@ -23,6 +23,8 @@ def main():
 	# create path if needed
 	if not os.path.exists(Bin + '/phtml'):
 		os.mkdir(Bin + '/phtml')
+	if not os.path.exists(Bin + '/uploads'):
+		os.mkdir(Bin + '/uploads')
 
 	DEBUG_BARCODE = None
 
@@ -203,12 +205,16 @@ def get_url(url, image_file=None):
 				return # just skip it
 			continue
 
-		fh = open(fn, 'w')
-		data = res.content
 		if not image_file:
+			fh = open(fn, 'w')
 			data = res.text.encode(res.encoding)
-		fh.write(data)
-		fh.close()
+			fh.write(data)
+			fh.close()
+		else:
+			fh = open(fn, 'wb')
+			data = res.content
+			fh.write(data)
+			fh.close()
 
 		return data
 
