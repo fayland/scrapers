@@ -47,7 +47,8 @@ def main():
 	]
 
 	keyword = "ヌードル"
-	url = "http://search.rakuten.co.jp/search/mall/" + urllib.quote(keyword).decode('utf8') + "/100227/?grp=product"
+	# url = "http://search.rakuten.co.jp/search/mall/" + urllib.quote(keyword).decode('utf8') + "/100227/?grp=product"
+	url = "http://search.rakuten.co.jp/search/mall/-/100283/?l-id=gt_swt_l_xs_100283"
 	c = get_url(url)
 
 	page_now = 1
@@ -69,7 +70,7 @@ def main():
 			pages = filter(lambda x: x.get_text().strip() == str(page_now + 1), pages)
 			if pages: next_page = pages[0]['href']
 		page_now = page_now + 1
-		# if page_now > 6: break
+		# if page_now > 10: break
 
 		to_fix = 0
 		name, ingredients, image, matched_url = '', '', '', ''
@@ -164,11 +165,13 @@ def main():
 					image = image['src']
 					image = re.sub('\?.+$', '', image)
 
-			if name and ingredients: break
+
+			if not ingredients:
+				print 'no ingredients'
+				continue
 
 			if not image:
 				print 'no image'
-				wfh.write(barcode + "\n")
 				continue # FIXME
 
 			get_url(image, Bin + "/uploads/" + barcode + ".jpg");
