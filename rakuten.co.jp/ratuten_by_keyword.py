@@ -99,7 +99,7 @@ def main():
 			if not barcode:
 				print "CAN NOT GET BARCODE FROM " + in_url
 				continue
-			print "get barcode as " + barcode
+			print "get barcode as " + barcode.encode('utf8')
 
 			trs = soup.find_all('tr')
 			while True:
