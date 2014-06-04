@@ -16,12 +16,14 @@ pp = pprint.PrettyPrinter(indent=4)
 session = requests.Session()
 session.headers.update({'User-Agent': 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0; Trident/4.0)'})
 
+IS_save_html = False
+
 def main():
 	csvwriter = csv.writer(file('pdata.csv', 'wb'))
 	csvwriter.writerow(['BARCODE', 'INGREDIENTS', 'PRODUCT NAME', 'IMAGE'])
 
 	# create path if needed
-	if not os.path.exists(Bin + '/phtml'):
+	if IS_save_html and not os.path.exists(Bin + '/phtml'):
 		os.mkdir(Bin + '/phtml')
 	if not os.path.exists(Bin + '/uploads'):
 		os.mkdir(Bin + '/uploads')
@@ -206,13 +208,14 @@ def get_url(url, image_file=None):
 			continue
 
 		if not image_file:
-			fh = open(fn, 'w')
 			data = res.text.encode(res.encoding)
-			fh.write(data)
-			fh.close()
+			if IS_save_html:
+				fh = open(fn, 'w')
+				fh.write(data)
+				fh.close()
 		else:
-			fh = open(fn, 'wb')
 			data = res.content
+			fh = open(fn, 'wb')
 			fh.write(data)
 			fh.close()
 
