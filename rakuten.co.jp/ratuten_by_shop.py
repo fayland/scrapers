@@ -37,6 +37,9 @@ def main():
 		re.compile('原材料名】<br/>\s*(.*?)\s*<br/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
 		re.compile('原材料名：\s*(.*?)\s*</span>\s*<br/>\s*<br/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
 		re.compile('原材料名</td>\s*<td[^\>]*>\s*(.*?)\s*<hr/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+
+		re.compile('＜成分＞<br/>\s*(.*?)\s*<br/>\s*【'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+
 		re.compile('原材料に含まれるアレルギー物質：?\s*(.*?)\s*</p>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
 		re.compile('原材料に含まれるアレルギー物質：?\s*</div><div[^\>]*>(.*?)\s*</div>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
 		re.compile('原材料</b>\s*<br/>\s*(.*?)\s*<br/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
@@ -98,39 +101,6 @@ def main():
 				print "CAN NOT GET BARCODE FROM " + in_url
 				continue
 			print "get barcode as " + barcode.encode('utf8')
-
-			trs = soup.find_all('tr')
-			while True:
-				if not len(trs): break
-				tr = trs.pop(0)
-				__trs = tr.find_all('tr')
-				if len(__trs): continue
-
-				tds = tr.find_all(re.compile("^t[dh]$"))
-				tds = map(lambda x: x.get_text().strip(), tds)
-				tds = filter(lambda x: len(x), tds)
-				if not len(tds): continue
-
-				if tds[0] == '商品名'.decode('utf8'):
-					if len(tds) > 1: name = tds[1]
-				elif tds[0].endswith('原材料'.decode('utf8')) and len(tds) <= 2:
-					if len(tds) > 1:
-						ingredients = tds[1]
-					else:
-						ingredients = trs.pop(0).get_text().strip()
-				elif (
-						len(tds[0]) < 50 and ('原材料'.decode('utf8') in tds[0] or ('成分'.decode('utf8') in tds[0] and '栄養成分'.decode('utf8') not in tds[0]))
-					) or (
-						tds[0].endswith('原材料'.decode('utf8'))
-					):
-					if not ingredients:
-						if len(tds) > 1:
-							ingredients = tds[1]
-						else:
-							ingredients = trs.pop(0).get_text().strip()
-				# remove BAD for next choice
-				if 'item.rakuten.co.jp' in ingredients or 'iframe' in ingredients or len(ingredients) > 1000:
-					ingredients = ''
 
 			cc = soup.decode_contents()
 			for re_i in re_ingredients:
