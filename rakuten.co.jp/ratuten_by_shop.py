@@ -17,15 +17,15 @@ pp = pprint.PrettyPrinter(indent=4)
 session = requests.Session()
 session.headers.update({'User-Agent': 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0; Trident/4.0)'})
 
-IS_save_html = False
+IS_save_html = True
 
 def main():
-	csvwriter = csv.writer(file('ysdata.csv', 'wb'))
-	csvwriter.writerow(['BARCODE', 'INGREDIENTS', 'PRODUCT NAME', 'IMAGE'])
+	csvwriter = csv.writer(file('shop.csv', 'wb'))
+	csvwriter.writerow(['BARCODE', 'INGREDIENTS', 'PRODUCT NAME', 'CATEGORY', 'IMAGE'])
 
 	# create path if needed
-	if IS_save_html and not os.path.exists(Bin + '/yhtml'):
-		os.mkdir(Bin + '/yhtml')
+	if IS_save_html and not os.path.exists(Bin + '/phtml'):
+		os.mkdir(Bin + '/phtml')
 	if not os.path.exists(Bin + '/uploads'):
 		os.mkdir(Bin + '/uploads')
 
@@ -37,7 +37,6 @@ def main():
 		re.compile('原材料名】<br/>\s*(.*?)\s*<br/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
 		re.compile('原材料名：\s*(.*?)\s*</span>\s*<br/>\s*<br/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
 		re.compile('原材料名</td>\s*<td[^\>]*>\s*(.*?)\s*<hr/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
-		re.compile('原材料名】\s*(.*?)\s*<br/>【'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
 		re.compile('原材料に含まれるアレルギー物質：?\s*(.*?)\s*</p>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
 		re.compile('原材料に含まれるアレルギー物質：?\s*</div><div[^\>]*>(.*?)\s*</div>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
 		re.compile('原材料</b>\s*<br/>\s*(.*?)\s*<br/>'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
@@ -49,56 +48,52 @@ def main():
 		re.compile('原材料</b><br/><br/><br/>\s*(<table.*?</table>)'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
 	]
 
-	keyword = "ヌードル"
-	# url = "http://search.rakuten.co.jp/search/mall/" + urllib.quote(keyword).decode('utf8') + "/100227/?grp=product"
-	url = "http://category.shopping.yahoo.co.jp/list/1167/?tab_ex=commerce&fr=shp-prop"
+	url = "http://search.rakuten.co.jp/search/inshop-mall/-/-/sid.242246-st.A?x=35"
 	c = get_url(url)
 
 	page_now = 1
 	while True:
 		soup = BeautifulSoup(c)
-		rsrSResultPhoto = soup.find_all('h3', attrs={'class': 'elName'})
-		rsrSResultPhoto = map(lambda x: x.find('a', attrs={'href': re.compile('http')}), rsrSResultPhoto)
+		rsrSResultPhoto = soup.find_all('img', attrs={'src': re.compile('ex=96x96')})
+		rsrSResultPhoto = map(lambda x: x.find_parent('a', attrs={'href': re.compile('http')}), rsrSResultPhoto)
 		rsrSResultPhoto = filter(lambda x: x is not None, rsrSResultPhoto)
 		rsrSResultPhoto = map(lambda x: x['href'], rsrSResultPhoto)
 
 		if not rsrSResultPhoto:
-			print '## CAN NOT FIND ANY RESULT RELATED TO ' + keyword
+			print '## CAN NOT FIND ANY RESULT RELATED TO ' + url
 			break
 
 		next_page = False
-		rsrPagination = soup.find('div', attrs={'id': 'Sp1'})
-		if rsrPagination:
-			pages = rsrPagination.find_all('a')
-			pages = filter(lambda x: x.get_text().strip() == str(page_now + 1), pages)
-			if pages: next_page = pages[0]['href']
+		pages = soup.find_all('a', attrs={'href': re.compile('-p.\d+-')})
+		pages = filter(lambda x: x.get_text().strip() == str(page_now + 1), pages)
+		if pages: next_page = pages[0]['href']
 		page_now = page_now + 1
-		# if page_now > 3: break
+		# if page_now > 10: break
 
 		to_fix = 0
 		name, ingredients, image, matched_url = '', '', '', ''
 		for in_url in rsrSResultPhoto:
-			if 'aff.makeshop.jp' in in_url: continue
+			if 'http://item.rakuten.co.jp/book/' in in_url: continue
+
 			print "\n\n"
 
 			name, ingredients, image, matched_url = '', '', '', in_url
 			c = get_url(in_url)
 			if not c: continue # skip
+			c.replace("<tr></font></td>", "</font></td>")
 
 			soup = BeautifulSoup(c)
 
-			barcode = soup.find('p', attrs={'class': 'jan'})
+			barcode = soup.find('span', attrs={'class': 'item_number'})
 			if barcode:
 				barcode = barcode.get_text()
-				barcode = re.sub('^(.*?)：'.decode('utf8'), '', barcode)
+				barcode = re.sub('-(.*?)$', '', barcode)
 				if len(barcode) != 13 or not barcode.isdigit():
 					print "UNKNOWN barcode: " + barcode.encode('utf8')
 					barcode = ''
-			if not barcode:
-				h1 = soup.find('h1')
-				if h1:
-					m = re.search('\D(\d{13})\D', h1.get_text())
-					if m: barcode = m.group(1)
+			# if not barcode:
+			# 	m = re.search('\D(\d{13})\D', c)
+			# 	if m: barcode = m.group(1)
 			if not barcode:
 				print "CAN NOT GET BARCODE FROM " + in_url
 				continue
@@ -154,23 +149,22 @@ def main():
 			if DEBUG_BARCODE: print ingredients
 
 			if not len(name):
-				name = soup.find('span', attrs={'property': 'rdfs:label'})
-				if not name: name = soup.find('h1', attrs={'itemprop': 'name'})
+				name = soup.find('span', attrs={'class': 'content_title'})
 				if name:
 					name = name.get_text()
 					name = re.sub('【\d+】'.decode('utf8'), '', name)
 
-			image = soup.find('span', attrs={'rel': re.compile('media:image')})
-			if image:
-				image = image.parent['href']
-				# href="javascript:openItemImage('/mizota/enlargedimage.html?code=100200044&img=http://item.shopping.c.yimg.jp/i/l/mizota_100200044');"
-				m = re.search("img=(.*?)\'", image)
-				if m: image = m.group(1)
-			else:
-				image = soup.find('img', attrs={'id': 'productlargeImage'})
+			image = soup.find('a', attrs={'class': re.compile('ImageMain')})
+			if image and 'href' in image.attrs:
+				image = image['href']
+			elif image:
+				image = image.find('img')
 				if image:
 					image = image['src']
-					if image.startswith('//'): image = 'http' + image
+					image = re.sub('\?.+$', '', image)
+
+			category = soup.find('td', attrs={'class': 'sdtext'})
+			if category: category = category.get_text().strip()
 
 			if not ingredients:
 				print 'no ingredients'
@@ -186,7 +180,10 @@ def main():
 			ingredients = re.sub('\s+', ' ', ingredients).strip()
 			name = name.encode('utf8')
 			name = re.sub('\s+', ' ', name).strip()
-			csvwriter.writerow([barcode, ingredients, name, "uploads/" + barcode + ".jpg", matched_url])
+			if not category: category = ''
+			category = category.encode('utf8')
+			category = re.sub('\s+', ' ', category).strip()
+			csvwriter.writerow([barcode, ingredients, name, category, "uploads/" + barcode + ".jpg", matched_url])
 
 		if not next_page: break # when it's an end
 		print "### get next page: " + next_page
@@ -196,7 +193,7 @@ def get_url(url, image_file=None):
 	fn = image_file
 	if fn is None:
 		m5 = md5.new(url).hexdigest()
-		fn = Bin + "/yhtml/" + m5 + ".html"
+		fn = Bin + "/phtml/" + m5 + ".html"
 
 	if os.path.exists(fn):
 		if image_file: return True
