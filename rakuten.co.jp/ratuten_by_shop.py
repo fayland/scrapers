@@ -51,6 +51,10 @@ def main():
 		re.compile('原材料</b><br/><br/><br/>\s*(<table.*?</table>)'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
 	]
 
+	re_barcodes = [
+		re.compile(r'JANコード：(\d{13}|\d{8})\b'.decode('utf8'), re.I|re.DOTALL|re.MULTILINE),
+	]
+
 	url = "http://search.rakuten.co.jp/search/inshop-mall/-/-/sid.242246-st.A?x=35"
 	c = get_url(url)
 
@@ -86,23 +90,27 @@ def main():
 			c.replace("<tr></font></td>", "</font></td>")
 
 			soup = BeautifulSoup(c)
+			cc = soup.decode_contents()
 
-			barcode = soup.find('span', attrs={'class': 'item_number'})
-			if barcode:
-				barcode = barcode.get_text()
-				barcode = re.sub('-(.*?)$', '', barcode)
-				if len(barcode) != 13 or not barcode.isdigit():
-					print "UNKNOWN barcode: " + barcode.encode('utf8')
-					barcode = ''
-			# if not barcode:
-			# 	m = re.search('\D(\d{13})\D', c)
-			# 	if m: barcode = m.group(1)
+			barcode = ''
+			for re_i in re_barcodes:
+				m = re.search(re_i, cc)
+				if m:
+					barcode = m.group(1)
+
+			if not barcode:
+				barcode = soup.find('span', attrs={'class': 'item_number'})
+				if barcode:
+					barcode = barcode.get_text()
+					barcode = re.sub('-(.*?)$', '', barcode)
+					if (len(barcode) != 13 and len(barcode) != 8) or not barcode.isdigit():
+						print "UNKNOWN barcode: " + barcode.encode('utf8')
+						barcode = ''
 			if not barcode:
 				print "CAN NOT GET BARCODE FROM " + in_url
 				continue
 			print "get barcode as " + barcode.encode('utf8')
 
-			cc = soup.decode_contents()
 			for re_i in re_ingredients:
 				m = re.search(re_i, cc)
 				if m:
